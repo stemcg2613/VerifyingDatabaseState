@@ -1,0 +1,413 @@
+/* ===============================
+   DisplayRelationalData.sql
+   =============================== */
+
+/* Q1 */
+SELECT u.username,
+       MIN(r.rating) AS lowest_rating
+FROM userbase u
+JOIN reviews r
+  ON u.userid = r.userid
+GROUP BY u.username;
+
+
+/* Q2 */
+SELECT u.email,
+       sq.question,
+       sq.answer
+FROM userbase u
+JOIN securityquestion sq
+  ON u.userid = sq.userid;
+
+
+/* Q3 */
+SELECT u.firstname,
+       u.email,
+       u.walletfunds
+FROM userbase u
+LEFT JOIN wishlist w
+  ON u.userid = w.userid
+WHERE w.userid IS NULL;
+
+
+/* Q4 */
+SELECT u.username,
+       COUNT(o.orderid) AS products_ordered
+FROM userbase u
+LEFT JOIN orders o
+  ON u.userid = o.userid
+GROUP BY u.username;
+
+
+/* Q5 */
+SELECT 'Q5' AS label,
+       u.username AS col1,
+       TO_CHAR(FLOOR(MONTHS_BETWEEN(SYSDATE, u.birthday) / 12)) AS col2,
+       TO_CHAR(o.purchasedate, 'YYYY-MM-DD') AS col3
+FROM userbase u
+JOIN orders o
+  ON u.userid = o.userid
+WHERE o.purchasedate >= ADD_MONTHS(SYSDATE, -6)
+
+UNION ALL
+
+SELECT 'Q5_DIAG',
+       'recent_orders=' || (
+         SELECT COUNT(*)
+         FROM orders
+         WHERE purchasedate >= ADD_MONTHS(SYSDATE, -6)
+       ),
+       'total_orders=' || (SELECT COUNT(*) FROM orders),
+       NULL
+FROM dual;
+
+
+/* Q6 */
+SELECT u.username,
+       u.birthday
+FROM userbase u
+JOIN friendslist f
+  ON u.userid = f.userid
+GROUP BY u.username, u.birthday
+HAVING COUNT(*) = (
+  SELECT MAX(cnt)
+  FROM (
+    SELECT userid, COUNT(*) AS cnt
+    FROM friendslist
+    GROUP BY userid
+  )
+);
+
+
+/* Q7 */
+SELECT 'Q7' AS label,
+       p.productname AS col1,
+       TO_CHAR(p.releasedate, 'YYYY-MM-DD') AS col2,
+       TO_CHAR(p.price) AS col3,
+       p.description AS col4
+FROM productlist p
+JOIN wishlist w
+  ON p.productcode = w.productcode
+
+UNION ALL
+
+SELECT 'Q7_DIAG',
+       'wishlist_rows=' || (SELECT COUNT(*) FROM wishlist),
+       'product_rows='  || (SELECT COUNT(*) FROM productlist),
+       'matches=' || (
+         SELECT COUNT(*)
+         FROM productlist p2
+         JOIN wishlist w2
+           ON p2.productcode = w2.productcode
+       ),
+       NULL
+FROM dual;
+
+
+/* Q8 */
+SELECT p.productname,
+       MAX(r.rating) AS highest_rating,
+       COUNT(*)      AS review_count
+FROM productlist p
+JOIN reviews r
+  ON p.productcode = r.productcode
+GROUP BY p.productname
+ORDER BY highest_rating DESC;
+
+
+/* Q9 */
+CREATE OR REPLACE VIEW view_extreme_ratings AS
+SELECT p.productname,
+       p.genre,
+       r.rating
+FROM productlist p
+JOIN reviews r
+  ON p.productcode = r.productcode
+WHERE r.rating IN (1, 5);
+
+SELECT 'Q9' AS label,
+       productname AS col1,
+       genre       AS col2,
+       TO_CHAR(rating) AS col3
+FROM view_extreme_ratings
+
+UNION ALL
+
+SELECT 'Q9_DIAG',
+       'rows=' || (SELECT COUNT(*) FROM view_extreme_ratings),
+       NULL,
+       NULL
+FROM dual
+ORDER BY label, col3;
+
+
+/* Q10 */
+SELECT p.genre,
+       COUNT(*) AS products_ordered
+FROM orders o
+JOIN productlist p
+  ON o.productcode = p.productcode
+GROUP BY p.genre
+ORDER BY p.genre;
+
+
+/* Q11 */
+CREATE OR REPLACE VIEW view_publisher_stats AS
+SELECT p.publisher,
+       AVG(p.price) AS avg_price,
+       COUNT(*)     AS product_count
+FROM productlist p
+GROUP BY p.publisher;
+
+SELECT 'Q11' AS label,
+       publisher AS col1,
+       TO_CHAR(ROUND(avg_price, 2)) AS col2,
+       TO_CHAR(product_count) AS col3
+FROM view_publisher_stats
+
+UNION ALL
+
+SELECT 'Q11_DIAG',
+       'product_rows=' || (SELECT COUNT(*) FROM productlist),
+       NULL,
+       NULL
+FROM dual
+ORDER BY label, col1;
+
+
+/* Q12 */
+SELECT p.publisher,
+       SUM(o.price) AS total_spent
+FROM orders o
+JOIN productlist p
+  ON o.productcode = p.productcode
+GROUP BY p.publisher
+ORDER BY total_spent DESC;
+
+
+/* Q13 */
+SELECT t.ticketid,
+       u.username,
+       t.email,
+       t.issue
+FROM usersupport t
+LEFT JOIN userbase u
+  ON LOWER(TRIM(t.email)) = LOWER(TRIM(u.email))
+WHERE t.status IN ('NEW', 'IN PROGRESS')
+ORDER BY t.dateupdated DESC;
+
+
+/* Q14 */
+SELECT 'Q14' AS label,
+       u.username AS col1,
+       TO_CHAR(COUNT(t.ticketid)) AS col2
+FROM userbase u
+LEFT JOIN usersupport t
+  ON LOWER(TRIM(t.email)) = LOWER(TRIM(u.email))
+GROUP BY u.username
+
+UNION ALL
+
+SELECT 'Q14_DIAG',
+       'tickets_total=' || (SELECT COUNT(*) FROM usersupport),
+       'email_matches=' || (
+         SELECT COUNT(*)
+         FROM usersupport t2
+         JOIN userbase u2
+           ON LOWER(TRIM(t2.email)) = LOWER(TRIM(u2.email))
+       )
+FROM dual;
+
+
+/* Q15 */
+SELECT 'Q15' AS label,
+       TO_CHAR(u.userid) AS col1,
+       t.email           AS col2
+FROM usersupport t
+JOIN userbase u
+  ON LOWER(TRIM(t.email)) = LOWER(TRIM(u.email))
+WHERE LOWER(t.email) LIKE '%' || LOWER(u.firstname) || '%'
+   OR LOWER(t.email) LIKE '%' || LOWER(u.lastname)  || '%'
+
+UNION ALL
+
+SELECT 'Q15_DIAG',
+       'tickets_total=' || (SELECT COUNT(*) FROM usersupport),
+       'email_matches=' || (
+         SELECT COUNT(*)
+         FROM usersupport t2
+         JOIN userbase u2
+           ON LOWER(TRIM(t2.email)) = LOWER(TRIM(u2.email))
+       )
+FROM dual;
+
+
+/* Q16 */
+SELECT DISTINCT t.email
+FROM usersupport t
+LEFT JOIN userbase u
+  ON LOWER(TRIM(t.email)) = LOWER(TRIM(u.email))
+WHERE u.email IS NULL
+  AND t.status IN ('NEW', 'IN PROGRESS');
+
+
+/* Q17 */
+SELECT 'Q17_MATCHES' AS label,
+       TO_CHAR(COUNT(*)) AS total
+FROM usersupport t
+JOIN userbase u
+  ON LOWER(t.issue) LIKE '%' || LOWER(u.username) || '%'
+
+UNION ALL
+
+SELECT 'Q17_TICKETS_TOTAL', TO_CHAR(COUNT(*))
+FROM usersupport
+
+UNION ALL
+
+SELECT 'Q17_USERS_TOTAL', TO_CHAR(COUNT(*))
+FROM userbase;
+
+
+/* Q18 */
+SELECT DISTINCT u.username,
+                u.password
+FROM usersupport t
+JOIN userbase u
+  ON LOWER(TRIM(t.email)) = LOWER(TRIM(u.email));
+
+
+/* Q19 */
+CREATE OR REPLACE VIEW view_recent_penalties AS
+SELECT u.username,
+       i.dateassigned,
+       i.penalty
+FROM infractions i
+JOIN userbase u
+  ON i.userid = u.userid
+WHERE i.penalty IS NOT NULL
+  AND i.dateassigned >= ADD_MONTHS(SYSDATE, -1);
+
+SELECT 'Q19' AS label,
+       username AS col1,
+       TO_CHAR(dateassigned, 'YYYY-MM-DD') AS col2,
+       penalty AS col3
+FROM view_recent_penalties
+
+UNION ALL
+
+SELECT 'Q19_DIAG',
+       'rows=' || (SELECT COUNT(*) FROM view_recent_penalties),
+       'infractions_total=' || (SELECT COUNT(*) FROM infractions),
+       NULL
+FROM dual;
+
+
+/* Q20 */
+SELECT 'Q20' AS label,
+       u.username AS col1,
+       u.email    AS col2
+FROM userbase u
+LEFT JOIN infractions i
+  ON u.userid = i.userid
+ AND i.dateassigned >= ADD_MONTHS(SYSDATE, -4)
+WHERE FLOOR(MONTHS_BETWEEN(SYSDATE, u.birthday) / 12) >= 18
+  AND i.userid IS NULL
+
+UNION ALL
+
+SELECT 'Q20_DIAG',
+       'eligible_18plus=' || (
+         SELECT COUNT(*)
+         FROM userbase
+         WHERE FLOOR(MONTHS_BETWEEN(SYSDATE, birthday) / 12) >= 18
+       ),
+       'infractions_last4mo=' || (
+         SELECT COUNT(*)
+         FROM infractions
+         WHERE dateassigned >= ADD_MONTHS(SYSDATE, -4)
+       )
+FROM dual;
+
+
+/* Q21 */
+SELECT 'Q21' AS label,
+       u.username AS col1,
+       TO_CHAR(i.dateassigned, 'YYYY-MM-DD') AS col2,
+       (c.rulenum || ' ' || c.title) AS col3
+FROM infractions i
+JOIN userbase u
+  ON i.userid = u.userid
+JOIN communityrules c
+  ON i.rulenum = c.rulenum
+
+UNION ALL
+
+SELECT 'Q21_DIAG',
+       'infractions_total=' || (SELECT COUNT(*) FROM infractions),
+       'rules_total=' || (SELECT COUNT(*) FROM communityrules),
+       NULL
+FROM dual;
+
+
+/* Q22 */
+SELECT 'Q22' AS label,
+       TO_CHAR(u.userid) AS col1,
+       u.username AS col2,
+       TO_CHAR(NVL(SUM(i.severitypoints),0)) AS col3
+FROM userbase u
+LEFT JOIN infractions i
+  ON u.userid = i.userid
+GROUP BY u.userid, u.username
+
+UNION ALL
+
+SELECT 'Q22_DIAG',
+       'infractions_total=' || (SELECT COUNT(*) FROM infractions),
+       NULL,
+       NULL
+FROM dual;
+
+
+/* Q23 */
+SELECT 'Q23' AS label,
+       c.title AS col1,
+       c.description AS col2,
+       i.penalty AS col3
+FROM infractions i
+JOIN communityrules c
+  ON i.rulenum = c.rulenum
+
+UNION ALL
+
+SELECT 'Q23_DIAG',
+       'infractions_total=' || (SELECT COUNT(*) FROM infractions),
+       'rules_total=' || (SELECT COUNT(*) FROM communityrules),
+       NULL
+FROM dual;
+
+
+/* Q24 */
+SELECT 'Q24' AS label,
+       u.username AS col1,
+       TO_CHAR(COUNT(*)) AS col2
+FROM infractions i
+JOIN userbase u
+  ON i.userid = u.userid
+GROUP BY u.username
+HAVING COUNT(*) >= 15
+
+UNION ALL
+
+SELECT 'Q24_DIAG',
+       'users_with_15plus=' || (
+         SELECT COUNT(*)
+         FROM (
+           SELECT userid
+           FROM infractions
+           GROUP BY userid
+           HAVING COUNT(*) >= 15
+         )
+       ),
+       'infractions_total=' || (SELECT COUNT(*) FROM infractions)
+FROM dual;
