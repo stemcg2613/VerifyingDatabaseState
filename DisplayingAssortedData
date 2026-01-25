@@ -1,0 +1,165 @@
+-- Q.1
+SELECT u.userid
+FROM userbase u
+LEFT JOIN orders o
+  ON u.userid = o.userid
+WHERE o.orderid IS NULL;
+
+-- Q.2
+SELECT p.productcode
+FROM productlist p
+LEFT JOIN reviews r
+  ON p.productcode = r.productcode
+WHERE r.productcode IS NULL;
+
+-- Q.3
+SELECT u.*,
+       CASE
+         WHEN MONTHS_BETWEEN(SYSDATE, u.birthday) / 12 >= 18 THEN 'Adult'
+         ELSE 'Minor'
+       END AS age_group
+FROM userbase u;
+
+-- Q.4
+SELECT p.*,
+       CASE
+         WHEN p.price <= 20 THEN 'On Sale'
+         ELSE 'Base Price'
+       END AS price_status
+FROM productlist p;
+
+-- Q.5
+SELECT DISTINCT ul.userid
+FROM userlibrary ul
+JOIN userprofile up
+  ON ul.userid = up.userid
+WHERE ul.productcode = 'GAME6'
+  AND up.imagefile IS NOT NULL
+  AND TRIM(up.imagefile) IS NOT NULL;
+
+-- Q.6
+SELECT productcode
+FROM wishlist
+WHERE position IN (1, 2)
+INTERSECT
+SELECT productcode
+FROM reviews
+WHERE rating >= 3;
+
+-- Q.7
+SELECT u1.username AS username_1,
+       u2.username AS username_2,
+       u1.birthday AS birthday
+FROM userbase u1
+JOIN userbase u2
+  ON u1.birthday = u2.birthday
+ AND u1.userid < u2.userid;
+
+-- Q.8
+SELECT *
+FROM userlibrary
+CROSS JOIN wishlist;
+
+-- Q.9
+SELECT TO_CHAR(u.userid) AS id,
+       u.username        AS name,
+       'USER'            AS record_type
+FROM userbase u
+UNION ALL
+SELECT p.productcode     AS id,
+       p.productname     AS name,
+       'PRODUCT'         AS record_type
+FROM productlist p;
+
+-- Q.10
+SELECT 'CHATLOG' AS source,
+       TO_CHAR(c.userid) AS userid,
+       c.message AS details
+FROM chatlog c
+UNION ALL
+SELECT 'USERPROFILE' AS source,
+       TO_CHAR(up.userid) AS userid,
+       up.description AS details
+FROM userprofile up;
+
+-- Q.11
+SELECT u.username
+FROM userbase u
+LEFT JOIN infractions i
+  ON u.userid = i.userid
+WHERE i.userid IS NULL;
+
+-- Q.12
+SELECT cr.title,
+       cr.description
+FROM communityrules cr
+WHERE cr.rulenum NOT IN (
+  SELECT i.rulenum
+  FROM infractions i
+  WHERE i.rulenum IS NOT NULL
+);
+
+-- Q.13
+SELECT DISTINCT u.username,
+       u.email
+FROM userbase u
+JOIN infractions i
+  ON u.userid = i.userid
+WHERE i.penalty IS NOT NULL;
+
+-- Q.14
+SELECT DISTINCT TRUNC(i.dateassigned) AS shared_date
+FROM infractions i
+JOIN usersupport us
+  ON TRUNC(i.dateassigned) = TRUNC(us.dateupdated);
+
+-- Q.15
+SELECT DISTINCT cr.title,
+       i.penalty
+FROM infractions i
+JOIN communityrules cr
+  ON i.rulenum = cr.rulenum;
+
+-- Q.16
+SELECT cr.*,
+       CASE
+         WHEN cr.severitypoint >= 10 THEN 'Bannable'
+         ELSE 'Appealable'
+       END AS rule_type
+FROM communityrules cr;
+
+-- Q.17
+SELECT us.*,
+       CASE
+         WHEN us.status <> 'CLOSED'
+          AND us.dateupdated < SYSDATE - 7
+         THEN 'High Priority'
+         ELSE 'Normal'
+       END AS priority_level
+FROM usersupport us;
+
+-- Q.18
+SELECT *
+FROM usersupport
+CROSS JOIN infractions;
+
+-- Q.19
+SELECT DISTINCT a.ticketid,
+       a.dateupdated
+FROM usersupport a
+JOIN usersupport b
+  ON TRUNC(a.dateupdated) = TRUNC(b.dateupdated)
+ AND a.ticketid <> b.ticketid
+WHERE a.status = 'CLOSED'
+  AND b.status = 'CLOSED';
+
+-- Q.20
+SELECT TO_CHAR(u.userid) AS id,
+       u.username        AS activity,
+       'USERBASE'        AS record_type
+FROM userbase u
+UNION ALL
+SELECT TO_CHAR(i.userid) AS id,
+       'INFRACTION'      AS activity,
+       'INFRACTIONS'     AS record_type
+FROM infractions i;
